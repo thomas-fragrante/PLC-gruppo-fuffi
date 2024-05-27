@@ -1,0 +1,179 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:table_calendar/table_calendar.dart';
+
+void main() => runApp(MyApp());
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Calendar',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Flutter Calendar Example'),
+      ),
+      body: Column(
+        children: [
+          TableCalendarWidget(),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => NewScreen()),
+          );
+        },
+        label: Text('Aggiungi evento'),
+        icon: Icon(Icons.arrow_forward),
+        backgroundColor: Colors.green,
+        tooltip: 'Vai a nuova schermata',
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+}
+
+class TableCalendarWidget extends StatefulWidget {
+  @override
+  _TableCalendarWidgetState createState() => _TableCalendarWidgetState();
+}
+
+class _TableCalendarWidgetState extends State<TableCalendarWidget> {
+  CalendarFormat _calendarFormat = CalendarFormat.month;
+  DateTime _focusedDay = DateTime.now();
+  DateTime? _selectedDay;
+
+  @override
+  Widget build(BuildContext context) {
+    return TableCalendar(
+      firstDay: DateTime.utc(2020, 1, 1),
+      lastDay: DateTime.utc(2030, 12, 31),
+      focusedDay: _focusedDay,
+      calendarFormat: _calendarFormat,
+      selectedDayPredicate: (day) {
+        return isSameDay(_selectedDay, day);
+      },
+      onDaySelected: (selectedDay, focusedDay) {
+        setState(() {
+          _selectedDay = selectedDay;
+          _focusedDay = focusedDay;
+        });
+      },
+      onFormatChanged: (format) {
+        if (_calendarFormat != format) {
+          setState(() {
+            _calendarFormat = format;
+          });
+        }
+      },
+      onPageChanged: (focusedDay) {
+        _focusedDay = focusedDay;
+      },
+    );
+  }
+}
+
+class DoubleClickHandler extends StatefulWidget {
+  final Widget child;
+  final VoidCallback onDoubleTap;
+
+  DoubleClickHandler({required this.child, required this.onDoubleTap});
+
+  @override
+  _DoubleClickHandlerState createState() => _DoubleClickHandlerState();
+}
+
+class _DoubleClickHandlerState extends State<DoubleClickHandler> {
+  int _clickCount = 0;
+  Timer? _clickTimer;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        _clickCount++;
+        if (_clickCount == 2) {
+          widget.onDoubleTap();
+          _clickCount = 0;
+        } else {
+          if (_clickTimer != null && _clickTimer!.isActive) {
+            _clickTimer!.cancel();
+          }
+          _clickTimer = Timer(Duration(milliseconds: 300), () {
+            _clickCount = 0;
+          });
+        }
+      },
+      child: widget.child,
+    );
+  }
+
+  @override
+  void dispose() {
+    _clickTimer?.cancel();
+    super.dispose();
+  }
+}
+
+class DayDetailScreen extends StatelessWidget {
+  final DateTime selectedDay;
+
+  DayDetailScreen({required this.selectedDay});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Dettagli del Giorno'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Center(
+        child: Text(
+          'Hai selezionato il giorno: ${selectedDay.toLocal()}',
+          style: TextStyle(fontSize: 24),
+        ),
+      ),
+    );
+  }
+}
+
+class NewScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Aggiungi evento'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+      ),
+      body: Center(
+        child: Text(
+          'Questa è una nuova schermata',
+          style: TextStyle(fontSize: 24),
+        ),
+      ),
+    );
+  }
+}
