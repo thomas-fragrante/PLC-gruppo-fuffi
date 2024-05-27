@@ -1,3 +1,4 @@
 # Gruppo-fuffi
 
-(hate nigg.)
+(hate niggERS.)
+
