@@ -1,3 +1,0 @@
-*Main.dart
-**codice
-dawbhdvad
