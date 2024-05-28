@@ -1,4 +1,6 @@
 # Gruppo-fuffi
 
-(hate niggERS.)
+(hate niggers.)
 
+
+support kkk
