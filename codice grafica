@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 
-void main() => runApp(const MyApp());
+void main() => runApp(MyApp());
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -12,23 +10,45 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const MyHomePage(),
+      home: MyHomePage(),
     );
   }
 }
 
-class MyHomePage extends StatelessWidget {
-  const MyHomePage({super.key});
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  int currentMonth = DateTime.now().month;
+  int selectedDay = DateTime.now().day;
+
+  List<String> weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  List<int> daysInMonth = List.generate(31, (index) => index + 1);
+
+  List<String> months = [
+    'January', 'February', 'March', 'April', 'May', 'June', 
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  void changeMonth(int newMonth) {
+    setState(() {
+      currentMonth = newMonth;
+      selectedDay = 1; // Resetto il giorno selezionato al primo giorno del nuovo mese
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Center(
-            child: Text('Schedule', style: TextStyle(color: Colors.white))),
-        backgroundColor: const Color(0xFF84A98C),
+        title: Center(
+          child: Text('Schedule', style: TextStyle(color: Colors.white)),
+        ),
+        backgroundColor: Color(0xFF84A98C),
       ),
-      backgroundColor: const Color(0xFF52796F),
+      backgroundColor: Color(0xFF52796F),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -37,57 +57,103 @@ class MyHomePage extends StatelessWidget {
               width: MediaQuery.of(context).size.width * 0.9,
               height: MediaQuery.of(context).size.height * 0.1,
               decoration: BoxDecoration(
-                color: const Color(0xFF354F52),
+                color: Color(0xFF354F52),
                 borderRadius: BorderRadius.circular(100),
               ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(Icons.arrow_back_ios, color: Colors.white),
+                    onPressed: () {
+                      changeMonth(currentMonth == 1 ? 12 : currentMonth - 1);
+                    },
+                  ),
+                  Text(
+                    months[currentMonth - 1],
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.arrow_forward_ios, color: Colors.white),
+                    onPressed: () {
+                      changeMonth(currentMonth == 12 ? 1 : currentMonth + 1);
+                    },
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 1),
+            SizedBox(height: 10),
             Container(
               width: MediaQuery.of(context).size.width * 0.9,
               height: MediaQuery.of(context).size.height * 0.5,
               decoration: BoxDecoration(
-                color: const Color(0xFF84A98C),
+                color: Color(0xFF84A98C),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 6,
-                  childAspectRatio: 1,
-                  crossAxisSpacing: 10,
-                  mainAxisSpacing: 10,
-                ),
-                itemCount: 31,
-                itemBuilder: (context, index) {
-                  return FloatingActionButton(
-                    onPressed: () {},
-                    child: Container(
-                      width: 30,
-                      height: 30,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white,
-                      ),
-                      child: Center(
-                        child: Text(
-                          (index + 1).toString(),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: weekdays
+                        .map(
+                          (day) => Text(
+                            day,
+                            style: TextStyle(color: Colors.white),
                           ),
+                        )
+                        .toList(),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: GridView.builder(
+                        padding: EdgeInsets.all(8),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 7,
+                          childAspectRatio: 1,
+                          crossAxisSpacing: 6,
+                          mainAxisSpacing: 20,
                         ),
+                        itemCount: daysInMonth.length,
+                        itemBuilder: (context, index) {
+                          final day = daysInMonth[index];
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                selectedDay = day;
+                              });
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: selectedDay == day ? Colors.blue : Colors.transparent,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  day.toString(),
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: selectedDay == day ? Colors.white : Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                    backgroundColor: Colors.transparent,
-                  );
-                },
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 40),
+            SizedBox(height: 40),
             Container(
               width: MediaQuery.of(context).size.width * 0.9,
               height: MediaQuery.of(context).size.height * 0.1,
               decoration: BoxDecoration(
-                color: const Color(0xFF84A98C),
+                color: Color(0xFF84A98C),
                 borderRadius: BorderRadius.circular(70),
               ),
             ),
