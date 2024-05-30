@@ -1,0 +1,298 @@
+import 'package:flutter/material.dart';
+import 'package:iconsax/iconsax.dart';
+import 'calendar_page.dart';
+
+void main() => runApp(const NavigationBarApp());
+
+class NavigationBarApp extends StatelessWidget {
+  const NavigationBarApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(useMaterial3: true),
+      home: const NavigationExample(),
+    );
+  }
+}
+
+class NavigationExample extends StatefulWidget {
+  const NavigationExample({super.key});
+
+  @override
+  State<NavigationExample> createState() => _NavigationExampleState();
+}
+
+class _NavigationExampleState extends State<NavigationExample> {
+  int currentPageIndex = 0;
+  List<String> devices = [];
+  List<Map<String, String>> personnel = [];
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = <Widget>[
+      // Home Page with Calendar
+      Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Schedle',
+            style: TextStyle(
+              fontSize: 24, // Dimensione del testo
+              fontWeight: FontWeight.bold, // Grassetto
+            ),
+            textAlign: TextAlign.center, // Centra il testo
+          ),
+          backgroundColor: const Color.fromARGB(255, 82, 121, 111),
+        ),
+        body: CalendarPage(),
+      ),
+      // Devices Page
+      Scaffold(
+        appBar: AppBar(
+          title: Text('Dispositivi'),
+          backgroundColor: const Color.fromARGB(255, 82, 121, 111),
+        ),
+        body: devices.isEmpty
+            ? Center(
+                child: Text(
+                  'Nessun dispositivo aggiunto',
+                  style: TextStyle(color: Colors.white),
+                ),
+              )
+            : ListView.builder(
+                itemCount: devices.length,
+                itemBuilder: (context, index) {
+                  return Container(
+                    margin: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 16.0),
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8.0,
+                          spreadRadius: 1.0,
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      devices[index],
+                      style: TextStyle(
+                        color: index % 2 == 0 ? Colors.blue : Colors.green,
+                        fontSize: 18.0,
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
+      // Personnel Page
+      Scaffold(
+        appBar: AppBar(
+          title: Text('Personale'),
+          backgroundColor: const Color.fromARGB(255, 82, 121, 111),
+        ),
+        body: personnel.isEmpty
+            ? Center(
+                child: Text(
+                  'Nessun personale aggiunto',
+                  style: TextStyle(color: Colors.white),
+                ),
+              )
+            : ListView.builder(
+                itemCount: personnel.length,
+                itemBuilder: (context, index) {
+                  final person = personnel[index];
+                  return Container(
+                    margin: const EdgeInsets.symmetric(
+                        vertical: 8.0, horizontal: 16.0),
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 8.0,
+                          spreadRadius: 1.0,
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Nome: ${person['name']!}',
+                          style: TextStyle(
+                            color: Colors.blue,
+                            fontSize: 18.0,
+                          ),
+                        ),
+                        Text(
+                          'Professione: ${person['profession']!}',
+                          style: TextStyle(
+                            color: Colors.green,
+                            fontSize: 16.0,
+                          ),
+                        ),
+                        Text(
+                          'Età: ${person['age']!}',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 14.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+      ),
+      // Settings Page
+      Container(
+        child: Center(
+          child: Text('Impostazioni'),
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      bottomNavigationBar: NavigationBar(
+        height: 80,
+        onDestinationSelected: (int index) {
+          setState(() {
+            currentPageIndex = index;
+          });
+        },
+        backgroundColor: const Color.fromARGB(255, 132, 169, 140),
+        indicatorColor: const Color.fromARGB(255, 82, 121, 111),
+        selectedIndex: currentPageIndex,
+        destinations: const <Widget>[
+          NavigationDestination(
+            icon: Icon(Iconsax.home_2),
+            label: 'Home',
+          ),
+          NavigationDestination(
+            icon: Icon(Iconsax.box),
+            label: 'Dispositivi',
+          ),
+          NavigationDestination(
+            icon: Icon(Iconsax.personalcard),
+            label: 'Personale',
+          ),
+          NavigationDestination(
+            icon: Icon(Iconsax.setting_24),
+            label: 'Impostazioni',
+          ),
+        ],
+      ),
+      body: pages[currentPageIndex],
+      floatingActionButton: currentPageIndex == 1 || currentPageIndex == 2
+          ? FloatingActionButton(
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    if (currentPageIndex == 1) {
+                      // Dialog for adding a device
+                      String newDevice = '';
+                      return AlertDialog(
+                        title: Text('Aggiungi Dispositivo'),
+                        content: TextField(
+                          onChanged: (value) {
+                            newDevice = value;
+                          },
+                          decoration: InputDecoration(
+                            hintText: 'Nome del dispositivo',
+                          ),
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            child: Text('Annulla'),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                          TextButton(
+                            child: Text('Aggiungi'),
+                            onPressed: () {
+                              setState(() {
+                                devices.add(newDevice);
+                              });
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      );
+                    } else if (currentPageIndex == 2) {
+                      // Dialog for adding a personnel
+                      String name = '';
+                      String profession = '';
+                      String age = '';
+                      return AlertDialog(
+                        title: Text('Aggiungi Personale'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextField(
+                              onChanged: (value) {
+                                name = value;
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Nome',
+                              ),
+                            ),
+                            TextField(
+                              onChanged: (value) {
+                                profession = value;
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Professione',
+                              ),
+                            ),
+                            TextField(
+                              onChanged: (value) {
+                                age = value;
+                              },
+                              decoration: InputDecoration(
+                                hintText: 'Età',
+                              ),
+                            ),
+                          ],
+                        ),
+                        actions: <Widget>[
+                          TextButton(
+                            child: Text('Annulla'),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                          TextButton(
+                            child: Text('Aggiungi'),
+                            onPressed: () {
+                              setState(() {
+                                personnel.add({
+                                  'name': name,
+                                  'profession': profession,
+                                  'age': age,
+                                });
+                              });
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                        ],
+                      );
+                    }
+                    return Container();
+                  },
+                );
+              },
+              child: Icon(Icons.add),
+            )
+          : null,
+    );
+  }
+}
