@@ -1,0 +1,324 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'calendar_pag.dart';
+import 'navigation_bar.dart';
+import 'device_page.dart';
+import 'personnel_page.dart';
+import 'dart:convert';
+
+void main() => runApp(const NavigationBarApp());
+
+class NavigationBarApp extends StatelessWidget {
+  const NavigationBarApp({Key? key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(useMaterial3: true),
+      home: const NavigationExample(),
+    );
+  }
+}
+
+class NavigationExample extends StatefulWidget {
+  const NavigationExample({Key? key});
+
+  @override
+  State<NavigationExample> createState() => _NavigationExampleState();
+}
+
+class _NavigationExampleState extends State<NavigationExample> {
+  int currentPageIndex = 0;
+  List<String> devices = [];
+  List<Map<String, String>> personnel = [];
+  Map<DateTime, List<Event>> events = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      devices = prefs.getStringList('devices') ?? [];
+      personnel = (prefs.getStringList('personnel') ?? []).map((person) {
+        var parts = person.split(":");
+        return {"name": parts[0], "profession": parts[1], "age": parts[2]};
+      }).toList();
+      events = _deserializeEvents(prefs.getString('events') ?? '{}');
+    });
+  }
+
+  Map<DateTime, List<Event>> _deserializeEvents(String json) {
+    final Map<String, dynamic> data = jsonDecode(json);
+    return data.map((key, value) {
+      final date = DateTime.parse(key);
+      final events = (value as List).map((e) => Event.fromJson(e)).toList();
+      return MapEntry(date, events);
+    });
+  }
+
+  String _serializeEvents(Map<DateTime, List<Event>> events) {
+    final data = events.map((key, value) {
+      final date = key.toIso8601String();
+      final events = value.map((e) => e.toJson()).toList();
+      return MapEntry(date, events);
+    });
+    return jsonEncode(data);
+  }
+
+  Future<void> _saveData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('devices', devices);
+    await prefs.setStringList(
+        'personnel',
+        personnel.map((person) {
+          return "${person['name']}:${person['profession']}:${person['age']}";
+        }).toList());
+    await prefs.setString('events', _serializeEvents(events));
+  }
+
+  void _showAddDeviceDialog() {
+    String deviceName = '';
+    int numberOfDevices = 1;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Device'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                onChanged: (value) {
+                  deviceName = value;
+                },
+                decoration: const InputDecoration(labelText: 'Device Name'),
+              ),
+              TextField(
+                onChanged: (value) {
+                  numberOfDevices = int.tryParse(value) ?? 1;
+                },
+                keyboardType: TextInputType.number,
+                decoration:
+                    const InputDecoration(labelText: 'Number of Devices'),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (deviceName.isNotEmpty) {
+                  setState(() {
+                    devices.add('$deviceName:$numberOfDevices');
+                    _saveData();
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddPersonnelDialog() {
+    String name = '';
+    String profession = '';
+    String age = '';
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Add Personnel'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                onChanged: (value) {
+                  name = value;
+                },
+                decoration: const InputDecoration(labelText: 'Name'),
+              ),
+              TextField(
+                onChanged: (value) {
+                  profession = value;
+                },
+                decoration: const InputDecoration(labelText: 'Profession'),
+              ),
+              TextField(
+                onChanged: (value) {
+                  age = value;
+                },
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Age'),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (name.isNotEmpty &&
+                    profession.isNotEmpty &&
+                    age.isNotEmpty) {
+                  setState(() {
+                    personnel.add({
+                      'name': name,
+                      'profession': profession,
+                      'age': age,
+                    });
+                    _saveData();
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+              child: const Text('Add'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = <Widget>[
+      Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Schedule',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          backgroundColor: const Color.fromARGB(255, 82, 121, 111),
+        ),
+        body: CalendarPage(
+          devices: devices,
+          events: events,
+          onEventAdded: (DateTime date, Event event) {
+            setState(() {
+              if (events.containsKey(date)) {
+                events[date]!.add(event);
+              } else {
+                events[date] = [event];
+              }
+              _saveData();
+            });
+          },
+          onEventSelected: (DateTime date, Event event) {},
+        ),
+      ),
+      DevicePage(
+        devices: devices,
+        addDevice: (String device) {
+          setState(() {
+            devices.add(device);
+            _saveData();
+          });
+        },
+      ),
+      PersonnelPage(
+        personnel: personnel,
+        addPersonnel: (Map<String, String> person) {
+          setState(() {
+            personnel.add(person);
+            _saveData();
+          });
+        },
+      ),
+      Container(
+        child: Center(
+          child: Text('Impostazioni'),
+        ),
+      ),
+    ];
+
+    return Scaffold(
+      bottomNavigationBar: AppNavigationBar(
+        currentPageIndex: currentPageIndex,
+        onDestinationSelected: (int index) {
+          setState(() {
+            currentPageIndex = index;
+          });
+        },
+      ),
+      body: pages[currentPageIndex],
+      floatingActionButton: (currentPageIndex == 1 || currentPageIndex == 2)
+          ? FloatingActionButton(
+              onPressed: () {
+                if (currentPageIndex == 1) {
+                  _showAddDeviceDialog();
+                } else if (currentPageIndex == 2) {
+                  _showAddPersonnelDialog();
+                }
+              },
+              child: Icon(Icons.add),
+            )
+          : null,
+    );
+  }
+}
+
+class Event {
+  final String name;
+  final String time;
+  final String material;
+  final String location;
+  final String personnel;
+  final int numberOfDevices; // Aggiunto campo per il numero di dispositivi
+
+  Event({
+    required this.name,
+    required this.time,
+    required this.material,
+    required this.location,
+    required this.personnel,
+    required this.numberOfDevices,
+    required List<String> devices,
+  });
+
+  factory Event.fromJson(Map<String, dynamic> json) {
+    return Event(
+      name: json['name'],
+      time: json['time'],
+      material: json['material'],
+      location: json['location'],
+      personnel: json['personnel'],
+      numberOfDevices: json['numberOfDevices'],
+      devices: [], // Aggiunto il parsing del campo
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'time': time,
+      'material': material,
+      'location': location,
+      'personnel': personnel,
+      'numberOfDevices': numberOfDevices, // Aggiunto il campo
+    };
+  }
+}
