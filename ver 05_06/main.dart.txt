@@ -1,0 +1,377 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'calendar_pag.dart';
+import 'navigation_bar.dart';
+import 'device_page.dart';
+import 'personnel_page.dart';
+import 'dart:convert';
+import 'package:collection/collection.dart';
+
+void main() => runApp(const NavigationBarApp());
+
+class NavigationBarApp extends StatelessWidget {
+  const NavigationBarApp({Key? key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData(useMaterial3: true),
+      home: const NavigationExample(),
+    );
+  }
+}
+
+class NavigationExample extends StatefulWidget {
+  const NavigationExample({Key? key});
+
+  @override
+  State<NavigationExample> createState() => _NavigationExampleState();
+}
+
+class _NavigationExampleState extends State<NavigationExample> {
+  int currentPageIndex = 0;
+  List<String> devices = [];
+  List<Map<String, String>> personnel = [];
+  Map<DateTime, List<Event>> events = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  Future<void> _loadData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      devices = prefs.getStringList('devices') ?? [];
+      personnel = (prefs.getStringList('personnel') ?? []).map((person) {
+        var parts = person.split(":");
+        return {"name": parts[0], "profession": parts[1], "age": parts[2]};
+      }).toList();
+      events = _deserializeEvents(prefs.getString('events') ?? '{}');
+    });
+  }
+
+  Map<DateTime, List<Event>> _deserializeEvents(String json) {
+    final Map<String, dynamic> data = jsonDecode(json);
+    final Map<DateTime, List<Event>> events = {};
+    data.forEach((key, value) {
+      final date = DateTime.parse(key);
+      final eventsList = (value as List).map((e) => Event.fromJson(e)).toList();
+      events[date] = eventsList;
+    });
+    return events;
+  }
+
+  String _serializeEvents(Map<DateTime, List<Event>> events) {
+    final data = events.map((key, value) {
+      final date = key.toIso8601String();
+      final events = value.map((e) => e.toJson()).toList();
+      return MapEntry(date, events);
+    });
+    return jsonEncode(data);
+  }
+
+  Future<void> _saveData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('devices', devices);
+    await prefs.setStringList(
+        'personnel',
+        personnel.map((person) {
+          return "${person['name']}:${person['profession']}:${person['age']}";
+        }).toList());
+    await prefs.setString('events', _serializeEvents(events));
+  }
+
+  void _showEditEventDialog(Event? event) {
+    String name = event?.name ?? '';
+    String time = event?.time ?? '';
+    String material = event?.material ?? '';
+    String location = event?.location ?? '';
+    String personnel = event?.personnel ?? '';
+    int numberOfDevices = event?.numberOfDevices ?? 1;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(event != null ? 'Edit Event' : 'Add Event'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              TextField(
+                onChanged: (value) {
+                  name = value;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Event Name',
+                  hintText: 'Enter event name',
+                ),
+                controller: TextEditingController(text: name),
+              ),
+              TextField(
+                onChanged: (value) {
+                  time = value;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Time',
+                  hintText: 'Enter event time',
+                ),
+                controller: TextEditingController(text: time),
+              ),
+              TextField(
+                onChanged: (value) {
+                  material = value;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Material',
+                  hintText: 'Enter required material',
+                ),
+                controller: TextEditingController(text: material),
+              ),
+              TextField(
+                onChanged: (value) {
+                  location = value;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Location',
+                  hintText: 'Enter event location',
+                ),
+                controller: TextEditingController(text: location),
+              ),
+              TextField(
+                onChanged: (value) {
+                  personnel = value;
+                },
+                decoration: InputDecoration(
+                  labelText: 'Personnel',
+                  hintText: 'Enter personnel details',
+                ),
+                controller: TextEditingController(text: personnel),
+              ),
+              TextField(
+                onChanged: (value) {
+                  numberOfDevices = int.tryParse(value) ?? 1;
+                },
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: 'Number of Devices',
+                  hintText: 'Enter number of devices required',
+                ),
+                controller:
+                    TextEditingController(text: numberOfDevices.toString()),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                if (name.isNotEmpty &&
+                    time.isNotEmpty &&
+                    material.isNotEmpty &&
+                    location.isNotEmpty &&
+                    personnel.isNotEmpty) {
+                  setState(() {
+                    if (event != null) {
+                      final index = events.keys.firstWhereOrNull(
+                          (date) => events[date]!.contains(event));
+                      if (index != null) {
+                        events[index]!.remove(event);
+                        if (events[index]!.isEmpty) {
+                          events.remove(index);
+                        }
+                      }
+                    }
+                    final newEvent = Event(
+                      name: name,
+                      time: time,
+                      material: material,
+                      location: location,
+                      personnel: personnel,
+                      numberOfDevices: numberOfDevices,
+                      devices: [],
+                    );
+                    final date = DateTime.now();
+                    if (events.containsKey(date)) {
+                      events[date]!.add(newEvent);
+                    } else {
+                      events[date] = [newEvent];
+                    }
+                    _saveData();
+                  });
+                  Navigator.of(context).pop();
+                }
+              },
+              child: Text(event != null ? 'Edit' : 'Add'),
+            ),
+            if (event != null)
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    final index = events.keys.firstWhereOrNull(
+                        (date) => events[date]!.contains(event));
+                    if (index != null) {
+                      events[index]!.remove(event);
+                      if (events[index]!.isEmpty) {
+                        events.remove(index);
+                      }
+                      _saveData();
+                    }
+                  });
+                  Navigator.of(context).pop();
+                },
+                child: const Text('Delete'),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> pages = <Widget>[
+      Scaffold(
+        appBar: AppBar(
+          title: Text(
+            'Schedule',
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          backgroundColor: const Color.fromARGB(255, 82, 121, 111),
+        ),
+        body: CalendarPage(
+          devices: devices,
+          events: events,
+          onEventAdded: (DateTime date, Event event) {
+            setState(() {
+              if (events.containsKey(date)) {
+                if (!events[date]!.contains(event)) {
+                  events[date]!.add(event);
+                }
+              } else {
+                events[date] = [event];
+              }
+              _saveData();
+            });
+          },
+          onEventSelected: (DateTime date, Event event) {},
+        ),
+      ),
+      DevicePage(
+        devices: devices,
+        addDevice: (String device) {
+          setState(() {
+            devices.add(device);
+            _saveData();
+          });
+        },
+      ),
+      PersonnelPage(
+        personnel: personnel,
+        addPersonnel: (Map<String, String> person) {
+          setState(() {
+            personnel.add(person);
+            _saveData();
+          });
+        },
+      ),
+    ];
+
+    return Scaffold(
+      bottomNavigationBar: AppNavigationBar(
+        currentPageIndex: currentPageIndex,
+        onDestinationSelected: (int index) {
+          setState(() {
+            currentPageIndex = index;
+          });
+        },
+      ),
+      body: pages[currentPageIndex],
+      floatingActionButton: (currentPageIndex == 1 || currentPageIndex == 2)
+          ? FloatingActionButton(
+              onPressed: () {
+                _showEditEventDialog(null);
+              },
+              child: Icon(Icons.add),
+            )
+          : null,
+    );
+  }
+}
+
+class Event {
+  final String name;
+  final String time;
+  final String material;
+  final String location;
+  final String personnel;
+  final int numberOfDevices;
+  final List<String> devices;
+
+  Event({
+    required this.name,
+    required this.time,
+    required this.material,
+    required this.location,
+    required this.personnel,
+    required this.numberOfDevices,
+    required this.devices,
+  });
+
+  factory Event.fromJson(Map<String, dynamic> json) {
+    return Event(
+      name: json['name'],
+      time: json['time'],
+      material: json['material'],
+      location: json['location'],
+      personnel: json['personnel'],
+      numberOfDevices: json['numberOfDevices'],
+      devices: [],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'time': time,
+      'material': material,
+      'location': location,
+      'personnel': personnel,
+      'numberOfDevices': numberOfDevices,
+    };
+  }
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is Event &&
+        other.name == name &&
+        other.time == time &&
+        other.material == material &&
+        other.location == location &&
+        other.personnel == personnel &&
+        other.numberOfDevices == numberOfDevices;
+  }
+
+  @override
+  int get hashCode {
+    return name.hashCode ^
+        time.hashCode ^
+        material.hashCode ^
+        location.hashCode ^
+        personnel.hashCode ^
+        numberOfDevices.hashCode;
+  }
+}
