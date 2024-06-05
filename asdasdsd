@@ -1,0 +1,725 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:table_calendar/table_calendar.dart';
+
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Gestione Attività',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: MyHomePage(),
+    );
+  }
+}
+
+class MyHomePage extends StatefulWidget {
+  @override
+  _MyHomePageState createState() => _MyHomePageState();
+}
+
+class _MyHomePageState extends State<MyHomePage> {
+  List<Map<String, dynamic>> eventi = [];
+  List<String> dispositivi = [];
+  List<Map<String, String>> personale = [];
+  DateTime _selectedDay = DateTime.now();
+  DateTime _focusedDay = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  void _loadData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      eventi = (prefs.getStringList('eventi') ?? []).map((item) => Map<String, dynamic>.from(item)).toList();
+      dispositivi = prefs.getStringList('dispositivi') ?? [];
+      personale = (prefs.getStringList('personale') ?? []).map((item) => Map<String, String>.from(item)).toList();
+    });
+  }
+
+  void _saveData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList('eventi', eventi.map((item) => item.toString()).toList());
+    await prefs.setStringList('dispositivi', dispositivi);
+    await prefs.setStringList('personale', personale.map((item) => item.toString()).toList());
+  }
+
+  void _showAddEventDialog() {
+    String title = "";
+    DateTime startDate = DateTime.now();
+    DateTime endDate = DateTime.now();
+    TimeOfDay startTime = TimeOfDay.now();
+    TimeOfDay endTime = TimeOfDay.now();
+    List<String> selectedDispositivi = [];
+    List<String> selectedPersonale = [];
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text("Aggiungi Evento"),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      onChanged: (valore) {
+                        title = valore;
+                      },
+                      decoration: InputDecoration(hintText: 'Titolo'),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Data di Inizio:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: startDate,
+                          firstDate: DateTime(2010),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null && picked != startDate) {
+                          setState(() {
+                            startDate = picked;
+                          });
+                        }
+                      },
+                      child: Text("${startDate.toLocal()}".split(' ')[0]),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Ora di Inizio:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final TimeOfDay? picked = await showTimePicker(
+                          context: context,
+                          initialTime: startTime,
+                        );
+                        if (picked != null && picked != startTime) {
+                          setState(() {
+                            startTime = picked;
+                          });
+                        }
+                      },
+                      child: Text("${startTime.format(context)}"),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Data di Fine:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: endDate,
+                          firstDate: DateTime(2010),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null && picked != endDate) {
+                          setState(() {
+                            endDate = picked;
+                          });
+                        }
+                      },
+                      child: Text("${endDate.toLocal()}".split(' ')[0]),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Ora di Fine:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final TimeOfDay? picked = await showTimePicker(
+                          context: context,
+                          initialTime: endTime,
+                        );
+                        if (picked != null && picked != endTime) {
+                          setState(() {
+                            endTime = picked;
+                          });
+                        }
+                      },
+                      child: Text("${endTime.format(context)}"),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Dispositivi:"),
+                    Container(
+                      height: 100,
+                      child: ListView(
+                        children: dispositivi.map((dispositivo) {
+                          return CheckboxListTile(
+                            title: Text(dispositivo),
+                            value: selectedDispositivi.contains(dispositivo),
+                            onChanged: (bool? value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedDispositivi.add(dispositivo);
+                                } else {
+                                  selectedDispositivi.remove(dispositivo);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Personale:"),
+                    Container(
+                      height: 100,
+                      child: ListView(
+                        children: personale.map((person) {
+                          return CheckboxListTile(
+                            title: Text(person['nome']!),
+                            value: selectedPersonale.contains(person['nome']!),
+                            onChanged: (bool? value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedPersonale.add(person['nome']!);
+                                } else {
+                                  selectedPersonale.remove(person['nome']!);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: Text("Annulla"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text("Salva"),
+                  onPressed: () {
+                    setState(() {
+                      eventi.add({
+                        'title': title,
+                        'startDate': startDate.toIso8601String(),
+                        'endDate': endDate.toIso8601String(),
+                        'startTime': {'hour': startTime.hour, 'minute': startTime.minute},
+                        'endTime': {'hour': endTime.hour, 'minute': endTime.minute},
+                        'dispositivi': selectedDispositivi,
+                        'personale': selectedPersonale,
+                      });
+                      _saveData();
+                    });
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditEventDialog(int index) {
+    var evento = eventi[index];
+    String title = evento['title'];
+    DateTime startDate = DateTime.parse(evento['startDate']);
+    DateTime endDate = DateTime.parse(evento['endDate']);
+    TimeOfDay startTime = TimeOfDay(hour: evento['startTime']['hour'], minute: evento['startTime']['minute']);
+    TimeOfDay endTime = TimeOfDay(hour: evento['endTime']['hour'], minute: evento['endTime']['minute']);
+    List<String> selectedDispositivi = List<String>.from(evento['dispositivi']);
+    List<String> selectedPersonale = List<String>.from(evento['personale']);
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text("Modifica Evento"),
+              content: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: TextEditingController(text: title),
+                      onChanged: (valore) {
+                        title = valore;
+                      },
+                      decoration: InputDecoration(hintText: 'Titolo'),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Data di Inizio:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: startDate,
+                          firstDate: DateTime(2010),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null && picked != startDate) {
+                          setState(() {
+                            startDate = picked;
+                          });
+                        }
+                      },
+                      child: Text("${startDate.toLocal()}".split(' ')[0]),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Ora di Inizio:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final TimeOfDay? picked = await showTimePicker(
+                          context: context,
+                          initialTime: startTime,
+                        );
+                        if (picked != null && picked != startTime) {
+                          setState(() {
+                            startTime = picked;
+                          });
+                        }
+                      },
+                      child: Text("${startTime.format(context)}"),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Data di Fine:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: endDate,
+                          firstDate: DateTime(2010),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null && picked != endDate) {
+                          setState(() {
+                            endDate = picked;
+                          });
+                        }
+                      },
+                      child: Text("${endDate.toLocal()}".split(' ')[0]),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Ora di Fine:"),
+                    SizedBox(height: 8),
+                    ElevatedButton(
+                      onPressed: () async {
+                        final TimeOfDay? picked = await showTimePicker(
+                          context: context,
+                          initialTime: endTime,
+                        );
+                        if (picked != null && picked != endTime) {
+                          setState(() {
+                            endTime = picked;
+                          });
+                        }
+                      },
+                      child: Text("${endTime.format(context)}"),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Dispositivi:"),
+                    Container(
+                      height: 100,
+                      child: ListView(
+                        children: dispositivi.map((dispositivo) {
+                          return CheckboxListTile(
+                            title: Text(dispositivo),
+                            value: selectedDispositivi.contains(dispositivo),
+                            onChanged: (bool? value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedDispositivi.add(dispositivo);
+                                } else {
+                                  selectedDispositivi.remove(dispositivo);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    SizedBox(height: 16),
+                    Text("Personale:"),
+                    Container(
+                      height: 100,
+                      child: ListView(
+                        children: personale.map((person) {
+                          return CheckboxListTile(
+                            title: Text(person['nome']!),
+                            value: selectedPersonale.contains(person['nome']!),
+                            onChanged: (bool? value) {
+                              setState(() {
+                                if (value == true) {
+                                  selectedPersonale.add(person['nome']!);
+                                } else {
+                                  selectedPersonale.remove(person['nome']!);
+                                }
+                              });
+                            },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: Text("Annulla"),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text("Salva"),
+                  onPressed: () {
+                    setState(() {
+                      eventi[index] = {
+                        'title': title,
+                        'startDate': startDate.toIso8601String(),
+                        'endDate': endDate.toIso8601String(),
+                        'startTime': {'hour': startTime.hour, 'minute': startTime.minute},
+                        'endTime': {'hour': endTime.hour, 'minute': endTime.minute},
+                        'dispositivi': selectedDispositivi,
+                        'personale': selectedPersonale,
+                      };
+                      _saveData();
+                    });
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showEditDispositivoDialog(int index) {
+    TextEditingController controller = TextEditingController(text: dispositivi[index]);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Modifica Dispositivo"),
+          content: TextField(
+            controller: controller,
+            decoration: InputDecoration(hintText: 'Nome del Dispositivo'),
+          ),
+          actions: [
+            TextButton(
+              child: Text("Annulla"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text("Salva"),
+              onPressed: () {
+                setState(() {
+                  dispositivi[index] = controller.text;
+                  _saveData();
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showEditPersonaleDialog(int index) {
+    TextEditingController nomeController = TextEditingController(text: personale[index]['nome']);
+    TextEditingController ruoloController = TextEditingController(text: personale[index]['ruolo']);
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Modifica Personale"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nomeController,
+                decoration: InputDecoration(hintText: 'Nome'),
+              ),
+              TextField(
+                controller: ruoloController,
+                decoration: InputDecoration(hintText: 'Ruolo'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text("Annulla"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text("Salva"),
+              onPressed: () {
+                setState(() {
+                  personale[index] = {'nome': nomeController.text, 'ruolo': ruoloController.text};
+                  _saveData();
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddDispositivoDialog() {
+    TextEditingController controller = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Aggiungi Dispositivo"),
+          content: TextField(
+            controller: controller,
+            decoration: InputDecoration(hintText: 'Nome del Dispositivo'),
+          ),
+          actions: [
+            TextButton(
+              child: Text("Annulla"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text("Salva"),
+              onPressed: () {
+                setState(() {
+                  dispositivi.add(controller.text);
+                  _saveData();
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddPersonaleDialog() {
+    TextEditingController nomeController = TextEditingController();
+    TextEditingController ruoloController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text("Aggiungi Personale"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nomeController,
+                decoration: InputDecoration(hintText: 'Nome'),
+              ),
+              TextField(
+                controller: ruoloController,
+                decoration: InputDecoration(hintText: 'Ruolo'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              child: Text("Annulla"),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text("Salva"),
+              onPressed: () {
+                setState(() {
+                  personale.add({'nome': nomeController.text, 'ruolo': ruoloController.text});
+                  _saveData();
+                });
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("Gestione Attività"),
+      ),
+      body: Column(
+        children: [
+          TableCalendar(
+            firstDay: DateTime.utc(2010, 10, 16),
+            lastDay: DateTime.utc(2030, 3, 14),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) {
+              return isSameDay(_selectedDay, day);
+            },
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay; // update `_focusedDay` here as well
+              });
+            },
+            eventLoader: (day) {
+              return eventi.where((evento) {
+                final eventStartDate = DateTime.parse(evento['startDate']);
+                final eventEndDate = DateTime.parse(evento['endDate']);
+                return day.isAfter(eventStartDate.subtract(Duration(days: 1))) &&
+                       day.isBefore(eventEndDate.add(Duration(days: 1)));
+              }).toList();
+            },
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: eventi.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(eventi[index]['title']),
+                  subtitle: Text(eventi[index]['startDate']),
+                  onTap: () => _showEditEventDialog(index),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddEventDialog,
+        tooltip: 'Aggiungi Evento',
+        child: Icon(Icons.add),
+      ),
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Text(
+                'Opzioni',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                ),
+              ),
+            ),
+            ListTile(
+              leading: Icon(Icons.settings),
+              title: Text('Dispositivi'),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text("Dispositivi"),
+                      content: Container(
+                        width: double.minPositive,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: dispositivi.length,
+                          itemBuilder: (context, index) {
+                            return ListTile(
+                              title: Text(dispositivi[index]),
+                              trailing: IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () => _showEditDispositivoDialog(index),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          child: Text("Aggiungi Dispositivo"),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showAddDispositivoDialog();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.people),
+              title: Text('Personale'),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) {
+                    return AlertDialog(
+                      title: Text("Personale"),
+                      content: Container(
+                        width: double.minPositive,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: personale.length,
+                          itemBuilder: (context, index) {
+                            return ListTile(
+                              title: Text(personale[index]['nome']!),
+                              subtitle: Text(personale[index]['ruolo']!),
+                              trailing: IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () => _showEditPersonaleDialog(index),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(
+                          child: Text("Aggiungi Personale"),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                            _showAddPersonaleDialog();
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class SharedPreferences {
+  static getInstance() {}
+}
